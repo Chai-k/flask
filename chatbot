@@ -1,0 +1,66 @@
+from flask import Flask, request
+from sql_alchemy import SQLAlchemy
+from sqlalchemy.dialects.postgresql import ARRAY
+import requests
+
+db_uri = 'postgresql://postgres:Lenovo#123@email-user-dev.cnztgicbbidm.us-east-1.rds.amazonaws.com/postgres'
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
+db = SQLAlchemy(app)
+
+class Chatbot(db.Model):
+    __tablename__ = 'chatbot'
+    ch_id = db.Column(db.String, primary_key=True, nullable=False)
+    ch_name = db.Column(db.String, nullable=False)
+    ch_traininglink = db.Column(db.String)
+    ch_status = db.Column(db.String)
+    ur_id = db.Column(db.String)
+    ch_embedlink = db.Column(db.String)
+    ch_color = db.Column(db.String)
+    ch_avatar = db.Column(db.String)
+    ch_welcomemsg = db.Column(db.String)
+    ch_position = db.Column(db.String)
+    ch_baseprompt = db.Column(db.String)
+    ch_modelid = db.Column(db.String)
+    ch_handoff = db.Column(db.Boolean, default=False)
+    or_id = db.Column(db.String)
+    created_at = db.Column(db.TIMESTAMP)
+    ch_locations = db.Column(ARRAY(db.String))
+    ch_urls = db.Column(ARRAY(db.String))
+
+@app.route('/', methods=['GET','POST'])
+def index():
+    try:
+        data = requests.get("https://dev2-1.stg.synup.com/api/v4/locations",
+                            headers={"Authorization": "API GHuWZ-4hZb6PKL2DxghqAPQYxeM"})
+        suggestions = data.json()
+        edges = suggestions['data']['allLocations']['edges']
+        for edge in edges:
+            node = edge['node']
+            # attribute = edge['node']['customAttributes']
+            # for value in attribute:
+            #     print(list(value.keys()))
+            #     break
+            # verification = edge['node']['googleVerificationStatus']
+            # print(list(verification.keys()))
+            keys = list(node.keys())
+            print(keys)
+            message = extract_welcomemsg('8e10ec67-0c23-4d25-87b7-f305618ca7c9')
+            print(message['message'], message['ch_id'])
+            break
+
+        return { "ID": message['ch_id'],"welcome_message": message['message'], "Suggestions": keys}
+    except Exception as e:
+        return str(e)
+    # return "success"
+def extract_welcomemsg(ch_id):
+    try:
+        # ch_id = data['ch_id']
+        chatbot = db.session.query(Chatbot.ch_welcomemsg).filter(Chatbot.ch_id == ch_id).first()
+        message = {"message" : chatbot[0],"ch_id" : ch_id}
+        return message
+    except Exception as e:
+        return str(e)
+
+if __name__ == "__main__":
+    app.run()
